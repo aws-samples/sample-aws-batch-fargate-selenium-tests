@@ -465,7 +465,7 @@ aws logs tail /aws/lambda/batch-demo-trigger-function --follow
 
 ---
 
-## 🔒 Security
+## Security
 
 ### Security Best Practices Implemented
 
@@ -518,7 +518,7 @@ When moving to production:
 
 ---
 
-## 💰 Cost Estimates
+## Cost Estimates
 
 ### Monthly Costs (Occasional Testing)
 
@@ -555,7 +555,7 @@ When moving to production:
 
 ---
 
-## 🔄 Automation and Scale
+## Automation and Scale
 
 This pattern supports horizontal scaling through:
 
@@ -577,19 +577,19 @@ To scale testing workloads, simply invoke the Lambda with different runIds concu
 
 ---
 
-## 📝 Contributing
+## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## 📄 License
+## License
 
 This sample code is made available under the MIT-0 license. See the [LICENSE](LICENSE) file.
 
 ---
 
-## 📚 Resources
+## Resources
 
 ### AWS Services Documentation
 - [AWS Batch User Guide](https://docs.aws.amazon.com/batch/latest/userguide/)
