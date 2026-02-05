@@ -1,0 +1,21 @@
+# Use official Selenium standalone Chrome image
+FROM selenium/standalone-chromium:latest
+
+USER root
+
+# Install pip, AWS CLI, and Python Selenium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --break-system-packages awscli pytest pytest-html selenium
+
+WORKDIR /app
+
+# Copy test files
+COPY test_sample.py .
+COPY upload_to_s3.sh .
+COPY run.sh .
+
+RUN chmod +x run.sh upload_to_s3.sh
+
+CMD ["./run.sh"]
