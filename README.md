@@ -30,7 +30,7 @@ Perfect for organizations needing scalable, automated browser testing without ma
 
 ---
 
-## 🎯 Overview
+## Overview
 
 ### What This Does
 
@@ -74,7 +74,7 @@ Lambda → EventBridge → AWS Batch → Fargate Container → S3 Report
 ┌─────────────────────────────────────────────────────────────┐
 │  Amazon EventBridge                                         │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  Event Pattern Matching → Triggers Batch Job        │   │
+│  │  Event Pattern Matching → Triggers Batch Job         │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -91,7 +91,7 @@ Lambda → EventBridge → AWS Batch → Fargate Container → S3 Report
 ┌─────────────────────────────────────────────────────────────┐
 │  Amazon S3                                                  │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  Test Reports: test_reports/runId/report.html       │   │
+│  │  Test Reports: test_reports/runId/report.html        │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -105,7 +105,7 @@ Lambda → EventBridge → AWS Batch → Fargate Container → S3 Report
 
 ---
 
-## ✅ Prerequisites
+## Prerequisites
 
 ### Required Software
 - **Terraform** >= 1.0
@@ -126,7 +126,7 @@ Your AWS credentials need permissions for:
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Clone the Repository
 
@@ -175,7 +175,7 @@ aws s3 cp s3://batch-demo-reports/test_reports/runjobrunId-test123/report.html .
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 sample-aws-batch-fargate-selenium-tests/
@@ -214,7 +214,7 @@ sample-aws-batch-fargate-selenium-tests/
 
 ---
 
-## 🚀 Deployment Guide
+## Deployment Guide
 
 ### Step 1: Initialize Terraform
 
@@ -291,7 +291,7 @@ aws ecr describe-images --repository-name batch-demo-repo
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Terraform Variables
 
@@ -452,10 +452,10 @@ aws logs tail /aws/lambda/batch-demo-trigger-function --follow
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 | Limitation | Description | Impact | Workaround |
-|------------|-------------|--------|------------|
+|:-----------|:------------|:-------|:-----------|
 | **Batch Job Submission Limits** | AWS Batch has limits on jobs per compute environment | High event volumes may cause submission failures | Implement queue throttling or use multiple compute environments |
 | **Container Overrides** | runId passed via environment variable overrides | Misconfiguration prevents correct runId delivery | Ensure EventBridge target configuration matches job definition |
 | **EventBridge Rule Limits** | Limits on pattern complexity and rule count | Complex patterns unsupported; management overhead | Simplify event patterns or use multiple rules |
