@@ -38,6 +38,5 @@ override.tf.json
 # localfiles 
 repositorycatalogdata.json
 notes.txt
-*.png
 .kiro/*
 builds/*

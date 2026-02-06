@@ -17,7 +17,6 @@ Perfect for organizations needing scalable, automated browser testing without ma
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
-- [Deployment Guide](#deployment-guide)
 - [Configuration](#configuration)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -36,7 +35,7 @@ Perfect for organizations needing scalable, automated browser testing without ma
 
 Builds a serverless, event-driven batch processing workflow for running containerized Selenium browser tests on AWS. A Lambda function receives test requests and publishes events to Amazon EventBridge, which triggers AWS Batch jobs running on Fargate.
 
-```
+```ini
 Lambda → EventBridge → AWS Batch → Fargate Container → S3 Report
 ```
 
@@ -60,41 +59,9 @@ Lambda → EventBridge → AWS Batch → Fargate Container → S3 Report
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  AWS Lambda                                                 │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Receives runId → Publishes Event                    │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Amazon EventBridge                                         │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Event Pattern Matching → Triggers Batch Job         │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  AWS Batch + Fargate                                        │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │ Job Queue    │───▶│  Compute Env │───▶│  Container   │   │
-│  │              │    │  (Fargate)   │    │  (Selenium)  │   │
-│  └──────────────┘    └──────────────┘    └──────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Amazon S3                                                  │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Test Reports: test_reports/runId/report.html        │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
+![Architecture Diagram](images/event-fargate.png)
 
 ### Network Architecture
 
@@ -108,13 +75,16 @@ Lambda → EventBridge → AWS Batch → Fargate Container → S3 Report
 ## Prerequisites
 
 ### Required Software
+
 - **Terraform** >= 1.0
 - **AWS CLI** configured with appropriate credentials
 - **Docker** for building container images
 - **Git** for version control
 
 ### AWS Permissions Required
+
 Your AWS credentials need permissions for:
+
 - VPC (create/manage VPCs, subnets, endpoints)
 - Lambda (create/manage functions)
 - EventBridge (create/manage rules)
@@ -161,23 +131,30 @@ aws lambda invoke \
 
 ### 5. Verify Results
 
+Get the S3 bucket name from Terraform outputs:
+
+```bash
+export BUCKET_NAME=$(terraform output -raw s3_bucket_name)
+echo "S3 Bucket: $BUCKET_NAME"
+```
+
 Check the S3 bucket for the test report:
 
 ```bash
-aws s3 ls s3://batch-demo-reports/test_reports/runjobrunId-test123/
+aws s3 ls s3://$BUCKET_NAME/test_reports/runjobrunId-test123/
 ```
 
 Download the report:
 
 ```bash
-aws s3 cp s3://batch-demo-reports/test_reports/runjobrunId-test123/report.html ./
+aws s3 cp s3://$BUCKET_NAME/test_reports/runjobrunId-test123/report.html ./
 ```
 
 ---
 
 ## Project Structure
 
-```
+```ini
 sample-aws-batch-fargate-selenium-tests/
 ├── main.tf                    # Root module composition
 ├── variables.tf               # Input variables
@@ -214,83 +191,6 @@ sample-aws-batch-fargate-selenium-tests/
 
 ---
 
-## Deployment Guide
-
-### Step 1: Initialize Terraform
-
-```bash
-terraform init
-```
-
-This will:
-- Download required provider plugins (AWS)
-- Initialize the backend
-- Prepare modules for use
-
-### Step 2: Review Configuration
-
-Edit [variables.tf](variables.tf) to customize:
-
-```hcl
-variable "region" {
-  default = "eu-west-1"  # Change to your preferred region
-}
-
-variable "project" {
-  default = "batch-demo"  # Change project name prefix
-}
-
-variable "image_tag" {
-  default = "latest"
-}
-```
-
-### Step 3: Deploy Infrastructure
-
-```bash
-terraform plan    # Review changes
-terraform apply   # Deploy resources
-```
-
-**Deployment Time**: ~5-10 minutes
-
-Resources created:
-- VPC with 2 private subnets
-- VPC endpoints (ECR, S3, CloudWatch Logs)
-- ECR repository
-- S3 bucket for reports
-- Lambda function
-- EventBridge rule
-- AWS Batch compute environment, job queue, and job definition
-- IAM roles and policies
-
-### Step 4: Build Container Image
-
-```bash
-./scripts/build-image.sh
-```
-
-This script:
-1. Retrieves ECR repository URL from Terraform outputs
-2. Authenticates Docker with ECR
-3. Builds the container image from [app/dockerfile](app/dockerfile)
-4. Tags and pushes the image to ECR
-
-### Step 5: Verify Deployment
-
-```bash
-# Check Lambda function
-aws lambda get-function --function-name batch-demo-trigger-function
-
-# Check Batch compute environment
-aws batch describe-compute-environments --compute-environments batch-demo-compute-env
-
-# Check ECR image
-aws ecr describe-images --repository-name batch-demo-repo
-```
-
----
-
 ## Configuration
 
 ### Terraform Variables
@@ -313,20 +213,22 @@ FROM python:3.11-slim
 ```
 
 Test script: [app/test_sample.py](app/test_sample.py)
+
 - Runs headless Chromium tests
 - Generates HTML report
 - Uploads to S3
 
 ### Lambda Configuration
 
-Lambda function code is inline in [modules/batch/main.tf](modules/batch/main.tf):
+Lambda function code is inline in modules/batch/lambda.tf:
+
 - Receives `runId` from event payload
 - Publishes event to EventBridge
 - Returns success/failure response
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Manual Testing
 
@@ -364,7 +266,11 @@ aws logs tail /aws/batch/job --follow
 **4. Retrieve Test Report:**
 
 ```bash
-aws s3 cp s3://batch-demo-reports/test_reports/runjobrunId-manual-test-001/report.html ./
+# Get bucket name from Terraform
+export BUCKET_NAME=$(terraform output -raw s3_bucket_name)
+
+# Download report
+aws s3 cp s3://$BUCKET_NAME/test_reports/runjobrunId-manual-test-001/report.html ./
 open report.html  # macOS
 ```
 
@@ -384,7 +290,7 @@ wait
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -402,6 +308,7 @@ aws batch describe-compute-environments \
 ```
 
 **Solution:**
+
 - Verify VPC endpoints in [modules/vpc/main.tf](modules/vpc/main.tf)
 - Check security group rules allow HTTPS (443) egress
 
@@ -413,6 +320,7 @@ aws ecr describe-images --repository-name batch-demo-repo
 ```
 
 **Solution:**
+
 ```bash
 # Rebuild and push image
 ./scripts/build-image.sh
@@ -423,6 +331,7 @@ aws ecr describe-images --repository-name batch-demo-repo
 The VPC has no NAT Gateway, so external URLs are unreachable.
 
 **Solution:**
+
 - Use `data:` URLs for testing (see [app/test_sample.py](app/test_sample.py))
 - Or add NAT Gateway to VPC (increases cost)
 
@@ -436,7 +345,8 @@ aws iam get-role-policy \
 ```
 
 **Solution:**
-- Verify S3 bucket name in [modules/batch/main.tf](modules/batch/main.tf)
+
+- Verify S3 bucket name using `terraform output s3_bucket_name`
 - Ensure job role has `s3:PutObject` permission
 
 **5. Lambda Invocation Fails**
@@ -447,6 +357,7 @@ aws logs tail /aws/lambda/batch-demo-trigger-function --follow
 ```
 
 **Solution:**
+
 - Verify EventBridge permissions in Lambda execution role
 - Check event payload format
 
@@ -455,7 +366,7 @@ aws logs tail /aws/lambda/batch-demo-trigger-function --follow
 ## Limitations
 
 | Limitation | Description | Impact | Workaround |
-|:-----------|:------------|:-------|:-----------|
+|------------|-------------|--------|------------|
 | **Batch Job Submission Limits** | AWS Batch has limits on jobs per compute environment | High event volumes may cause submission failures | Implement queue throttling or use multiple compute environments |
 | **Container Overrides** | runId passed via environment variable overrides | Misconfiguration prevents correct runId delivery | Ensure EventBridge target configuration matches job definition |
 | **EventBridge Rule Limits** | Limits on pattern complexity and rule count | Complex patterns unsupported; management overhead | Simplify event patterns or use multiple rules |
@@ -470,36 +381,41 @@ aws logs tail /aws/lambda/batch-demo-trigger-function --follow
 ### Security Best Practices Implemented
 
 ✅ **Network Isolation:**
+
 - Private subnets with no internet gateway
 - VPC endpoints for AWS service access
 - Security groups with least privilege rules
 
 ✅ **Encryption:**
+
 - S3 bucket encrypted with KMS
 - ECR images encrypted with AES256
 - Data in transit via TLS 1.2+
 
 ✅ **Access Control:**
+
 - IAM roles with least privilege policies
 - S3 bucket blocks public access
 - ECR repository has lifecycle policies
 
 ✅ **Logging & Monitoring:**
+
 - CloudWatch logs for Lambda and Batch jobs
 - Log retention policies configured
 - VPC Flow Logs (optional, can be enabled)
 
 ✅ **Image Security:**
+
 - ECR image scanning enabled
 - Immutable image tags
 - Lifecycle policies to remove old images
 
 ### Security Configuration Files
 
-- IAM policies: [modules/batch/main.tf](modules/batch/main.tf)
-- Security groups: [modules/vpc/main.tf](modules/vpc/main.tf)
-- S3 bucket policy: [modules/batch/main.tf](modules/batch/main.tf)
-- ECR repository policy: [modules/ecr/main.tf](modules/ecr/main.tf)
+- IAM policies: modules/batch/iam.tf
+- Security groups: modules/vpc/main.tf
+- S3 configuration: modules/batch/s3.tf
+- ECR repository: modules/ecr/main.tf
 
 ### Production Security Checklist
 
@@ -520,19 +436,23 @@ When moving to production:
 
 ## Cost Estimates
 
-### Monthly Costs (Occasional Testing)
+### Monthly Costs (100 test runs, 2 min avg duration, single AZ)
 
-| Component | Cost Model | Estimated Monthly Cost |
-|-----------|------------|------------------------|
-| **Fargate** | $0.04048/vCPU-hour + $0.004445/GB-hour | ~$1-5 (depends on job frequency) |
-| **VPC Endpoints** | $0.01/hour per interface endpoint × 3 | ~$22 |
-| **S3 Gateway Endpoint** | Free | $0 |
-| **Lambda** | First 1M requests free, then $0.20/1M | $0 (under free tier) |
-| **ECR Storage** | $0.10/GB-month | ~$1 |
-| **S3 Storage** | $0.023/GB-month | ~$1 |
-| **CloudWatch Logs** | $0.50/GB ingested | ~$1 |
-| **Data Transfer** | Within VPC via endpoints | $0 |
-| **Total** | | **~$26-30/month** |
+| Component              | Cost Model                                  | Estimated Monthly Cost         |
+|------------------------|---------------------------------------------|--------------------------------|
+| **Fargate**            | $0.04048/vCPU-hour + $0.004445/GB-hour      | ~$0.10 (100 jobs × 2 min avg)  |
+| **VPC Endpoints**      | $0.01/hour per interface endpoint × 6       | ~$44 (single AZ)               |
+| **S3 Gateway Endpoint**| Free                                        | $0                             |
+| **Lambda**             | First 1M requests free, then $0.20/1M       | $0 (under free tier)           |
+| **ECR Storage**        | $0.10/GB-month                              | ~$1                            |
+| **S3 Storage**         | $0.023/GB-month                             | ~$1                            |
+| **CloudWatch Logs**    | $0.50/GB ingested                           | ~$1                            |
+| **Data Transfer**      | Within VPC via endpoints                    | $0                             |
+| **Total**              |                                             | **~$47/month**                 |
+
+**Pricing based on US East (N. Virginia) region. Costs may vary by region.**
+
+**Note:** For high availability with 2 AZs, VPC endpoint costs double to ~$88/month, bringing total to ~$91/month.
 
 ### Cost Optimization Tips
 
@@ -545,13 +465,13 @@ When moving to production:
 
 ### Cost Breakdown by Usage
 
-| Usage Pattern | Jobs/Month | Estimated Cost |
-|---------------|------------|----------------|
-| **Light** (10 jobs) | 10 | ~$26 |
-| **Medium** (100 jobs) | 100 | ~$28 |
-| **Heavy** (1000 jobs) | 1000 | ~$35 |
+| Test Runs/Month | Fargate Cost | Total Monthly Cost |
+|-----------------|--------------|--------------------|
+| **10 runs**     |    ~$0.01    |        ~$47        |
+| **100 runs**    |    ~$0.10    |        ~$47        |
+| **1000 runs**   |    ~$1       |        ~$48        |
 
-**Note:** VPC endpoints are the primary fixed cost. Fargate costs scale with usage.
+**Note:** VPC endpoints ($44/month) are the primary fixed cost. Fargate costs scale linearly with test execution time.
 
 ---
 
@@ -566,12 +486,12 @@ This pattern supports horizontal scaling through:
 
 ### Scaling Limits
 
-| Resource | Default Limit | Request Increase |
-|----------|---------------|------------------|
-| Concurrent Fargate tasks | 100 per region | Yes, via AWS Support |
-| Batch jobs in queue | 1,000,000 | No increase needed |
-| Lambda concurrent executions | 1,000 per region | Yes, via AWS Support |
-| EventBridge invocations | Unlimited | N/A |
+| Resource                     | Default Limit      | Request Increase       |
+|------------------------------|--------------------|------------------------|
+| Concurrent Fargate tasks     | 100 per region     | Yes, via AWS Support   |
+| Batch jobs in queue          | 1,000,000          | No increase needed     |
+| Lambda concurrent executions | 1,000 per region   | Yes, via AWS Support   |
+| EventBridge invocations      | Unlimited          | N/A                    |
 
 To scale testing workloads, simply invoke the Lambda with different runIds concurrently.
 
@@ -592,6 +512,7 @@ This sample code is made available under the MIT-0 license. See the [LICENSE](LI
 ## Resources
 
 ### AWS Services Documentation
+
 - [AWS Batch User Guide](https://docs.aws.amazon.com/batch/latest/userguide/)
 - [Amazon EventBridge User Guide](https://docs.aws.amazon.com/eventbridge/latest/userguide/)
 - [AWS Fargate User Guide](https://docs.aws.amazon.com/AmazonECS/latest/userguide/what-is-fargate.html)
@@ -599,16 +520,19 @@ This sample code is made available under the MIT-0 license. See the [LICENSE](LI
 - [Amazon ECR User Guide](https://docs.aws.amazon.com/AmazonECR/latest/userguide/)
 
 ### Terraform Resources
+
 - [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 - [Terraform AWS Batch Module](https://registry.terraform.io/modules/terraform-aws-modules/batch/aws/)
 - [Terraform Best Practices](https://www.terraform-best-practices.com/)
 
 ### Selenium and Testing
+
 - [Selenium Documentation](https://www.selenium.dev/documentation/)
 - [ChromeDriver Documentation](https://chromedriver.chromium.org/documentation)
 - [Headless Chrome](https://developers.google.com/web/updates/2017/04/headless-chrome)
 
 ### Related AWS Samples
+
 - [AWS Batch Architecture Samples](https://github.com/aws-samples/aws-batch-architecture-for-alphafold)
 - [Serverless Testing Patterns](https://serverlessland.com/patterns)
 
